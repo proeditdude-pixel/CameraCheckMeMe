@@ -3,7 +3,8 @@
 CameraCheckMeMe is a high-fidelity, web-based AI application that uses computer vision to trigger real-time visual reactions based on your facial expressions and hand gestures. Built with a premium "Spatial" aesthetic, it utilizes MediaPipe's neural networks to track landmarks directly in your browser.
 
 📸 Screenshots
-<img width="2360" height="1399" alt="IMG_7965" src="https://github.com/user-attachments/assets/41cd2388-1d7f-43bc-b099-04d4e6c508de" />
+<img width="2360" height="1399" alt="IMG_7965" src="https://github.co![Uploading IMG_7969.jpeg…]()
+m/user-attachments/assets/41cd2388-1d7f-43bc-b099-04d4e6c508de" />
 
 The spatial interface in action, tracking gestures and triggering reactions.
 
