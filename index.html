@@ -3,239 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Pose Reaction Pro</title>
-    <!-- Mediapipe CDN -->
+    <title>AI Pose Reaction</title>
+    <!-- Direct CDN Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .mirror { transform: scaleX(-1); }
-        .reaction-container img {
+        .reaction-img {
             display: none;
-            max-height: 75vh;
-            width: auto;
+            max-height: 80vh;
+            max-width: 90%;
             border-radius: 2rem;
-            object-fit: contain;
-            animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-        .reaction-container img.active { display: block; }
-        @keyframes bounceIn {
-            0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.05); opacity: 1; }
-            70% { transform: scale(0.9); }
-            100% { transform: scale(1); }
+        .reaction-img.active { display: block; }
+        @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .trigger-hint {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
         }
-        .status-dot { transition: background-color 0.3s ease; }
     </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen font-sans overflow-hidden">
+<body class="bg-black text-white min-h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- Startup Overlay -->
-    <div id="overlay" class="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-8 text-center">
-        <div class="mb-8 relative">
-            <div class="w-20 h-20 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-            <div class="absolute inset-0 flex items-center justify-center font-bold text-blue-500">AI</div>
-        </div>
-        <h1 class="text-4xl font-black mb-4 tracking-tighter uppercase italic">Pose Reaction <span class="text-blue-500">2.0</span></h1>
-        <p id="loading-msg" class="text-zinc-500 mb-8 font-mono">Initializing Neural Engines...</p>
-        <button id="ready-btn" class="hidden bg-white text-black font-black py-4 px-12 rounded-full hover:bg-blue-500 hover:text-white transition-all transform hover:scale-110 active:scale-95 shadow-2xl">
-            ACCESS CAMERA
+    <!-- Loading Screen -->
+    <div id="setup-screen" class="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h1 class="text-3xl font-black mb-2 tracking-tighter uppercase">Initializing Engine</h1>
+        <p id="status-text" class="text-zinc-500 max-w-xs">Loading AI models from MediaPipe CDN...</p>
+        <button id="start-btn" class="hidden mt-8 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-12 rounded-2xl transition-all scale-110 shadow-[0_0_30px_rgba(37,99,235,0.4)]">
+            START CAMERA
         </button>
     </div>
 
-    <div class="h-screen flex flex-col">
-        <!-- Header -->
-        <header class="p-4 border-b border-zinc-900 bg-black/40 backdrop-blur-xl flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 p-1.5 rounded-lg shadow-lg shadow-blue-900/20">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l-4 4l6 6l4-16l-18 7l4 2l2 6l3-4"/></svg>
-                </div>
-                <span class="font-black text-xl tracking-tighter uppercase">Poze<span class="text-blue-500">AI</span></span>
-            </div>
-            <div class="flex gap-4">
-                <div class="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
-                    <div id="face-dot" class="status-dot w-2 h-2 rounded-full bg-red-600"></div>
-                    <span class="text-[10px] font-bold uppercase opacity-60">Face Sensor</span>
-                </div>
-                <div class="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
-                    <div id="hand-dot" class="status-dot w-2 h-2 rounded-full bg-red-600"></div>
-                    <span class="text-[10px] font-bold uppercase opacity-60">Hand Sensor</span>
-                </div>
-            </div>
-        </header>
+    <!-- Header -->
+    <header class="p-4 border-b border-zinc-900 flex justify-between items-center bg-zinc-950/50 backdrop-blur-md">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-black text-white">P</div>
+            <h1 class="text-xl font-black tracking-tighter uppercase">Poze<span class="text-blue-500">AI</span></h1>
+        </div>
+        <div id="loading-status" class="px-4 py-1.5 rounded-full bg-zinc-900 text-zinc-500 text-[10px] font-bold uppercase tracking-widest border border-zinc-800">
+            System Standby
+        </div>
+    </header>
 
-        <!-- Main Workspace -->
-        <main class="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
-            <!-- Camera Feed -->
-            <div class="md:w-1/3 relative bg-zinc-900 rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl">
-                <video id="webcam" class="hidden" playsinline></video>
-                <canvas id="output_canvas" class="w-full h-full object-cover mirror"></canvas>
-                
-                <div class="absolute bottom-4 left-4 right-4 grid grid-cols-2 gap-2">
-                    <div class="bg-black/60 backdrop-blur p-2 rounded-xl border border-white/5 text-[10px] font-bold text-center">🤫 SHUSH (FINGER TO MOUTH)</div>
-                    <div class="bg-black/60 backdrop-blur p-2 rounded-xl border border-white/5 text-[10px] font-bold text-center">☝️ HEY (POINT TO SKY)</div>
-                    <div class="bg-black/60 backdrop-blur p-2 rounded-xl border border-white/5 text-[10px] font-bold text-center">😂 LAUGH (BIG SMILE)</div>
-                    <div class="bg-black/60 backdrop-blur p-2 rounded-xl border border-white/5 text-[10px] font-bold text-center">👐 STRESS (2 HANDS UP)</div>
+    <main class="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">
+        <!-- LEFT SIDE: Camera View -->
+        <div class="flex-1 relative bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-800 shadow-2xl flex items-center justify-center">
+            <video id="input_video" class="hidden"></video>
+            <canvas id="output_canvas" class="w-full h-full object-cover mirror absolute inset-0"></canvas>
+            
+            <!-- Tracking Status -->
+            <div class="absolute top-6 left-6 flex gap-3 z-10">
+                <div class="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2">
+                    <div id="face-dot" class="w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Face Tracking</span>
+                </div>
+                <div class="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2">
+                    <div id="hand-dot" class="w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest">Hand Tracking</span>
                 </div>
             </div>
 
-            <!-- Reaction Output -->
-            <div class="flex-1 bg-black rounded-[2rem] border border-zinc-900 flex items-center justify-center relative overflow-hidden group">
-                <div id="idle-prompt" class="text-center group-hover:scale-105 transition-transform duration-700">
-                    <div class="text-6xl mb-4 opacity-20">🎭</div>
-                    <p class="text-zinc-700 font-black uppercase tracking-[0.3em]">Awaiting Pose</p>
-                </div>
-                
-                <div class="reaction-container flex items-center justify-center w-full h-full p-8">
-                    <img id="img-low" src="https://i.redd.it/ojhiwslg1yrf1.jpeg" alt="Low Cortisol">
-                    <img id="img-speed" src="https://media.tenor.com/5qbofo9sJsgAAAAe/my-mom-is-kinda-homeless-ishowspeed.png" alt="Speed">
-                    <img id="img-shush" src="https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUya2RhcHJ2cmo0amhnZ2N6bDNmcW9ubXhyZDFnaDY4bHZ6OHl3aHJ2aCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/4AwFO4f2VLo2fIFFA2/200w.gif" alt="Shush">
-                    <img id="img-sky" src="https://media.tenor.com/T_G76eQ2_88AAAAM/pointing-up-i-have-a-question.gif" alt="Hey">
-                    <img id="img-laugh" src="https://media1.tenor.com/m/bVv7G3zfJHEAAAAd/heheheha-laugh.gif" alt="Laugh">
-                    <img id="img-high" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrdP6ubQQy2VC_DCRlys32ieP_Age6WcauUsblmqZscg&s=10" alt="High Stress">
-                    <img id="img-shock" src="https://media1.tenor.com/m/WfqkollmqXYAAAAd/danganronpa-kyoko-kirigiri.gif" alt="Shock">
-                </div>
+            <!-- Trigger Cheat Sheet -->
+            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 w-max max-w-[90%] overflow-x-auto px-4 pb-2 z-10 no-scrollbar">
+                <div class="trigger-hint px-3 py-2 rounded-xl text-[10px] font-bold">👄 PUCKER = SPEED</div>
+                <div class="trigger-hint px-3 py-2 rounded-xl text-[10px] font-bold">🤫 SHUSH = MONKEY</div>
+                <div class="trigger-hint px-3 py-2 rounded-xl text-[10px] font-bold">☝️ POINT = IDEA</div>
+                <div class="trigger-hint px-3 py-2 rounded-xl text-[10px] font-bold">😱 SHOCK = STRESS</div>
             </div>
-        </main>
-    </div>
+        </div>
+
+        <!-- RIGHT SIDE: Content View -->
+        <div class="flex-1 flex flex-col items-center justify-center bg-zinc-950 rounded-[2.5rem] border border-zinc-900 shadow-inner p-4 relative">
+            <div id="reaction-container" class="relative w-full h-full flex items-center justify-center">
+                <div id="idle-msg" class="text-zinc-800 text-center flex flex-col items-center gap-4">
+                    <div class="text-8xl opacity-20">📡</div>
+                    <h2 class="uppercase tracking-[0.2em] font-black text-2xl opacity-30">Awaiting Signal</h2>
+                </div>
+                <!-- Images -->
+                <img id="res-speed" class="reaction-img" src="https://media1.tenor.com/m/g0TdYZ1BMpgAAAAd/ishowspeed-meme.gif">
+                <img id="res-shush" class="reaction-img" src="https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUya2RhcHJ2cmo0amhnZ2N6bDNmcW9ubXhyZDFnaDY4bHZ6OHl3aHJ2aCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/4AwFO4f2VLo2fIFFA2/200w.gif">
+                <img id="res-point" class="reaction-img" src="https://media.tenor.com/FWro5uCxvAUAAAAe/idea-monkey-tiktok-monkey.png">
+                <img id="res-low" class="reaction-img" src="https://media.tenor.com/B-uBLzMr9BwAAAAe/low-cortisol.png">
+                <img id="res-high" class="reaction-img" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrdP6ubQQy2VC_DCRlys32ieP_Age6WcauUsblmqZscg&s=10">
+            </div>
+        </div>
+    </main>
 
     <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('output_canvas');
-        const ctx = canvas.getContext('2d');
-        const overlay = document.getElementById('overlay');
-        const readyBtn = document.getElementById('ready-btn');
-        const loadingMsg = document.getElementById('loading-msg');
-        
-        const faceDot = document.getElementById('face-dot');
-        const handDot = document.getElementById('hand-dot');
-        const idlePrompt = document.getElementById('idle-prompt');
-        
-        const images = {
-            low: document.getElementById('img-low'),
-            speed: document.getElementById('img-speed'),
-            shush: document.getElementById('img-shush'),
-            sky: document.getElementById('img-sky'),
-            laugh: document.getElementById('img-laugh'),
-            high: document.getElementById('img-high'),
-            shock: document.getElementById('img-shock')
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const setupScreen = document.getElementById('setup-screen');
+        const statusText = document.getElementById('status-text');
+        const statusPill = document.getElementById('loading-status');
+
+        const indicators = { face: document.getElementById('face-dot'), hand: document.getElementById('hand-dot') };
+        const results = {
+            speed: document.getElementById('res-speed'),
+            shush: document.getElementById('res-shush'),
+            point: document.getElementById('res-point'),
+            low: document.getElementById('res-low'),
+            high: document.getElementById('res-high'),
+            idle: document.getElementById('idle-msg')
         };
 
-        let currentMood = 'idle';
-        let faceResults = null;
-        let handResults = null;
-
-        function updateUI(mood) {
-            if (mood === currentMood) return;
-            currentMood = mood;
-            
-            idlePrompt.style.display = (mood === 'idle') ? 'block' : 'none';
-            Object.keys(images).forEach(key => {
-                images[key].classList.toggle('active', key === mood);
+        function setReaction(key) {
+            Object.keys(results).forEach(k => {
+                if(k === 'idle') results[k].style.display = (key === 'idle' ? 'flex' : 'none');
+                else results[k].classList.toggle('active', k === key);
             });
         }
 
-        async function setupAI() {
-            // Load Face Mesh
-            const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            faceMesh.onResults(res => { faceResults = res.multiFaceLandmarks; });
-
-            // Load Hands
-            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            hands.onResults(res => { handResults = res.multiHandLandmarks; });
-
-            loadingMsg.textContent = "Hardware Acceleration Active. System Ready.";
-            readyBtn.classList.remove('hidden');
-
-            readyBtn.onclick = async () => {
-                readyBtn.textContent = "STARTING...";
-                const camera = new Camera(video, {
-                    onFrame: async () => {
-                        await faceMesh.send({image: video});
-                        await hands.send({image: video});
-                        detectPose();
-                    },
-                    width: 640,
-                    height: 480
-                });
-                await camera.start();
-                overlay.style.display = 'none';
-            };
-        }
-
-        function detectPose() {
-            // Setup Canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            let mood = 'idle';
-            let mouthY = 0.5;
-            let mouthX = 0.5;
-            let noseY = 0.5;
-            let eyeScale = 0.1;
-
-            // 1. Process Face
-            if (faceResults && faceResults.length > 0) {
-                faceDot.style.backgroundColor = '#16a34a'; // Green
-                const f = faceResults[0];
-                
-                const topLip = f[13], botLip = f[14], leftM = f[61], rightM = f[291];
-                const leftE = f[159], rightE = f[386];
-                
-                mouthY = (topLip.y + botLip.y) / 2;
-                mouthX = (leftM.x + rightM.x) / 2;
-                noseY = f[1].y;
-                eyeScale = Math.abs(leftE.x - rightE.x);
-
-                const vOpen = Math.abs(topLip.y - botLip.y);
-                const hWidth = Math.abs(leftM.x - rightM.x);
-
-                // Detection Logic
-                if (hWidth > eyeScale * 0.95 && vOpen > 0.03) mood = 'laugh';
-                else if (vOpen > 0.12) mood = 'shock';
-                else if (hWidth < eyeScale * 0.45 && vOpen > 0.01) mood = 'speed';
-                else if (vOpen < 0.012) mood = 'low';
-            } else {
-                faceDot.style.backgroundColor = '#dc2626'; // Red
-            }
-
-            // 2. Process Hands (Overrides Face)
-            if (handResults && handResults.length > 0) {
-                handDot.style.backgroundColor = '#16a34a';
-                const h1 = handResults[0];
-                const indexTip = h1[8], indexBase = h1[5], midTip = h1[12], wrist = h1[0];
-                
-                const distToMouth = Math.hypot(indexTip.x - mouthX, indexTip.y - mouthY);
-
-                // SKY POSE: Index finger is pointing straight up and is significantly above the nose
-                if (indexTip.y < noseY - 0.08 && indexTip.y < indexBase.y - 0.04) {
-                    mood = 'sky';
+        async function initApp() {
+            try {
+                if (typeof window.FaceMesh === 'undefined' || typeof window.Hands === 'undefined') {
+                    statusText.textContent = "Waiting for MediaPipe library...";
+                    setTimeout(initApp, 1000);
+                    return;
                 }
-                // SHUSH POSE: Index finger near mouth
-                else if (distToMouth < 0.15 && indexTip.y < midTip.y) {
-                    mood = 'shush';
-                }
-                // STRESS POSE: Both hands high up
-                else if (handResults.length >= 2) {
-                    const h2 = handResults[1];
-                    if (wrist.y < mouthY && h2[0].y < mouthY) {
-                        mood = 'high';
+
+                const faceMesh = new window.FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+                faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5 });
+
+                const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5 });
+
+                let faceData = null;
+                faceMesh.onResults(res => { faceData = res; });
+
+                hands.onResults(handRes => {
+                    if (!faceData || !faceData.image) return;
+                    
+                    if (canvasElement.width !== videoElement.videoWidth) {
+                        canvasElement.width = videoElement.videoWidth || 640;
+                        canvasElement.height = videoElement.videoHeight || 480;
                     }
-                }
-            } else {
-                handDot.style.backgroundColor = '#dc2626';
+                    
+                    canvasCtx.save();
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                    canvasCtx.drawImage(faceData.image, 0, 0, canvasElement.width, canvasElement.height);
+
+                    let mood = 'idle';
+                    let faceCenter = {x: 0, y: 0};
+
+                    if (faceData.multiFaceLandmarks?.length > 0) {
+                        indicators.face.classList.replace('bg-red-500', 'bg-green-500');
+                        const f = faceData.multiFaceLandmarks[0];
+                        const topL = f[13], botL = f[14], leftM = f[61], rightM = f[291];
+                        const lBrow = f[52], lEye = f[159];
+
+                        faceCenter = { x: (leftM.x + rightM.x)/2, y: topL.y };
+                        const mouthOpen = Math.abs(topL.y - botL.y);
+                        const mouthWidth = Math.abs(leftM.x - rightM.x);
+                        const browDist = Math.abs(lBrow.y - lEye.y);
+
+                        // Thresholds
+                        if (mouthWidth < 0.045) mood = 'speed';
+                        else if (mouthOpen > 0.08 || browDist > 0.04) mood = 'high';
+                        else if (browDist < 0.025 && mouthOpen < 0.01) mood = 'low';
+                    } else { 
+                        indicators.face.classList.replace('bg-green-500', 'bg-red-500'); 
+                    }
+
+                    if (handRes.multiHandLandmarks?.length > 0) {
+                        indicators.hand.classList.replace('bg-red-500', 'bg-green-500');
+                        const h = handRes.multiHandLandmarks[0];
+                        const indexTip = h[8], indexBase = h[5], middleTip = h[12];
+                        const distToFace = Math.hypot(indexTip.x - faceCenter.x, indexTip.y - faceCenter.y);
+                        
+                        if (distToFace < 0.08) mood = 'shush';
+                        else if (indexTip.y < indexBase.y - 0.1 && middleTip.y > indexBase.y) mood = 'point';
+                    } else { 
+                        indicators.hand.classList.replace('bg-green-500', 'bg-red-500'); 
+                    }
+
+                    setReaction(mood);
+                    canvasCtx.restore();
+                });
+
+                statusText.textContent = "System ready for deployment.";
+                startBtn.classList.remove('hidden');
+                
+                startBtn.onclick = async () => {
+                    startBtn.textContent = "WAKING CAMERA...";
+                    try {
+                        const camera = new window.Camera(videoElement, {
+                            onFrame: async () => {
+                                await faceMesh.send({image: videoElement});
+                                await hands.send({image: videoElement});
+                            },
+                            width: 640, height: 480
+                        });
+                        await camera.start();
+                        setupScreen.style.display = 'none';
+                        statusPill.textContent = 'SYSTEM LIVE';
+                        statusPill.classList.replace('text-zinc-500', 'text-green-500');
+                        statusPill.classList.replace('border-zinc-800', 'border-green-500/20');
+                    } catch (err) {
+                        alert("Camera access denied or unavailable.");
+                        startBtn.textContent = "RETRY CAMERA";
+                    }
+                };
+            } catch (e) {
+                console.error(e);
+                statusText.textContent = "Engine Error: " + e.message;
             }
-
-            updateUI(mood);
         }
-
-        setupAI();
+        initApp();
     </script>
 </body>
 </html>
