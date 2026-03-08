@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CameraCheckMeMe — Fun with Poses</title>
+    <title>CameraCheckMeMe — Peak Performance</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -11,8 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;800&display=swap" rel="stylesheet">
     
     <style>
-        :root {
-            --accent: #ff4d4d;
+        :root { 
+            --accent: #ff4d4d; 
+            --glow-color: rgba(255, 255, 255, 0.1);
         }
 
         body {
@@ -23,21 +24,50 @@
             background-blend-mode: overlay;
         }
 
+        /* PREMIUM TEXT EFFECT: Drop Shadow + Inner Shadow Feel */
+        .brand-text {
+            color: white;
+            text-shadow: 
+                0px 4px 10px rgba(0, 0, 0, 0.9), /* Outer Shadow */
+                0px 0px 2px rgba(255, 255, 255, 0.2); /* Soft highlight */
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.1); /* Subtle inner-edge feel */
+            letter-spacing: -0.05em;
+        }
+
+        .brand-text span {
+            color: var(--accent);
+            text-shadow: 
+                0px 4px 12px rgba(255, 77, 77, 0.5),
+                0px 0px 2px rgba(255, 77, 77, 0.2);
+        }
+
         .soft-panel {
             background: rgba(20, 20, 20, 0.7);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
+            border-radius: 32px;
+        }
+
+        .camera-pip {
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8), 0 0 0 0px var(--glow-color);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .camera-pip.active-glow {
+            box-shadow: 0 0 50px -5px var(--glow-color);
+            border-color: var(--glow-color);
+            transform: scale(1.02);
         }
 
         .mirror { transform: scaleX(-1); }
 
         .reaction-viewport img {
             display: none;
-            max-height: 65vh;
+            max-height: 60vh;
             border-radius: 40px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             transition: all 0.4s ease-out;
+            max-width: 100%;
         }
 
         .reaction-viewport img.active {
@@ -45,80 +75,168 @@
             animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
+        .typing-cursor::after {
+            content: "|";
+            animation: blink 0.7s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
         @keyframes bounceIn {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
         }
 
-        .status-light {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #333;
-            transition: all 0.3s;
-        }
+        /* Cinematic Intro Animations */
+        .intro-layer { animation: hideIntro 0.1s 3.8s forwards; }
+        .intro-camera-svg { transform: scale(0); animation: camPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, camClick 0.15s 1.2s ease-in-out forwards, camDisappear 0.1s 1.4s forwards; }
+        .intro-flash { opacity: 0; pointer-events: none; animation: flashFire 0.5s 1.2s ease-out forwards; }
+        .intro-photo { opacity: 0; transform: translateY(40px) scale(0.8) rotate(-5deg); animation: photoReveal 0.8s 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, photoZoomBlur 1.2s 2.6s cubic-bezier(0.5, 0, 0.1, 1) forwards; }
 
-        .status-on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        @keyframes camPop { 0% { transform: scale(0) rotate(-10deg); } 100% { transform: scale(1) rotate(0deg); } }
+        @keyframes camClick { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.85); } }
+        @keyframes camDisappear { to { opacity: 0; visibility: hidden; } }
+        @keyframes flashFire { 0%, 100% { opacity: 0; } 15% { opacity: 1; } }
+        @keyframes photoReveal { to { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); } }
+        @keyframes photoZoomBlur { 0% { transform: scale(1); filter: blur(0px); opacity: 1; } 100% { transform: scale(25); filter: blur(12px); opacity: 0; visibility: hidden; } }
+        @keyframes hideIntro { to { opacity: 0; visibility: hidden; z-index: -10; } }
+
+        .modal-bg {
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-bg.active { opacity: 1; pointer-events: auto; }
+        
+        .pfp-ring {
+            padding: 3px;
+            background: linear-gradient(45deg, #ff4d4d, #7c3aed);
+            border-radius: 999px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col">
 
-    <!-- Simple Intro Screen -->
-    <div id="setup-screen" class="fixed inset-0 z-[100] bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-5xl font-extrabold tracking-tight mb-4">CameraCheck<span class="text-[#ff4d4d]">MeMe</span></h1>
-        <p id="status-text" class="text-zinc-400 text-lg mb-8 max-w-xs">A fun way to trigger memes with your face and hands.</p>
-        <button id="start-btn" class="hidden px-12 py-4 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all active:scale-95">
-            Let's Go
-        </button>
+    <!-- Cinematic Intro -->
+    <div id="intro-sequence" class="intro-layer fixed inset-0 z-[200] bg-[#0a0a0a] flex items-center justify-center">
+        <svg class="intro-camera-svg w-32 h-32 text-white absolute z-[202]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+            <line x1="18" y1="10" x2="18.01" y2="10" stroke-width="3"></line>
+        </svg>
+        <div class="intro-photo absolute z-[201] bg-white p-3 pb-8 rounded-lg shadow-2xl flex flex-col items-center justify-center border-b-[8px] border-zinc-200" style="width: 240px; height: 280px;">
+            <div class="w-full h-full bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center overflow-hidden relative">
+                <div class="absolute inset-0 bg-gradient-to-tr from-[#ff4d4d] to-purple-600 opacity-80 mix-blend-screen"></div>
+                <div class="text-4xl z-10 font-bold tracking-tighter text-white drop-shadow-lg">MeMe</div>
+            </div>
+            <div class="absolute bottom-2 text-black font-bold text-xs tracking-widest opacity-40">CAMERA CHECK</div>
+        </div>
+        <div class="intro-flash absolute inset-0 bg-white z-[205]"></div>
     </div>
 
-    <!-- Clean Header -->
-    <nav class="flex justify-between items-center px-10 py-8 z-10">
-        <div class="flex items-center gap-6">
-            <div class="soft-panel px-4 py-2 flex items-center gap-3">
-                <div class="flex gap-1.5">
-                    <div id="face-dot" class="status-light"></div>
-                    <div id="hand-dot" class="status-light"></div>
+    <!-- Start Screen -->
+    <div id="setup-screen" class="fixed inset-0 z-[100] bg-[#0a0a0a] flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-6xl font-extrabold mb-4 brand-text">CameraCheck<span>MeMe</span></h1>
+        
+        <!-- Typing Subtext -->
+        <p id="typing-text" class="text-zinc-400 text-lg mb-8 h-8 max-w-xs italic typing-cursor"></p>
+        
+        <div class="flex flex-col gap-4 w-full max-w-xs">
+             <button id="start-btn" class="hidden w-full px-12 py-4 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+                Let's Go
+            </button>
+             <button id="open-credits" class="w-full px-12 py-4 bg-white/5 border border-white/10 text-white font-medium rounded-2xl hover:bg-white/10 transition-all active:scale-95">
+                Credits
+            </button>
+        </div>
+    </div>
+
+    <!-- Credits Modal -->
+    <div id="credits-modal" class="modal-bg fixed inset-0 z-[160] flex items-center justify-center p-6">
+        <div class="soft-panel max-w-sm w-full p-8 text-center relative overflow-hidden">
+            <button id="close-credits" class="absolute top-6 right-6 text-zinc-500 hover:text-white text-xl z-10">✕</button>
+            <h2 class="text-2xl font-extrabold mb-10">The Team</h2>
+            
+            <div class="space-y-8">
+                <div class="flex flex-col items-center group">
+                    <div class="pfp-ring mb-3">
+                        <img src="https://media1.tenor.com/m/RVejE2uoSdIAAAAd/anime-snow.gif" class="w-20 h-20 rounded-full object-cover border-2 border-black">
+                    </div>
+                    <p class="text-zinc-500 uppercase text-[9px] tracking-[0.2em] mb-1 font-bold">The Visionary</p>
+                    <p class="text-2xl font-bold group-hover:text-[#ff4d4d] transition-colors">twins</p>
                 </div>
-                <span id="loading-status" class="text-[11px] font-medium uppercase tracking-widest text-zinc-500">Checking...</span>
+                <div class="w-12 h-[1px] bg-white/10 mx-auto"></div>
+                <div class="flex flex-col items-center group">
+                    <div class="pfp-ring mb-3 bg-white p-1">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/960px-Google_Gemini_icon_2025.svg.png" class="w-20 h-20 rounded-full object-contain p-2 bg-zinc-900">
+                    </div>
+                    <p class="text-zinc-500 uppercase text-[9px] tracking-[0.2em] mb-1 font-bold">The Architect</p>
+                    <p class="text-2xl font-bold group-hover:text-blue-400 transition-colors">Gemini</p>
+                </div>
             </div>
         </div>
-        <div class="text-2xl font-extrabold tracking-tighter">CameraCheckMeMe</div>
-        <div class="w-10 h-10"></div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal-bg fixed inset-0 z-[150] flex items-center justify-center p-6">
+        <div class="soft-panel max-w-xl w-full p-8 relative">
+            <button id="close-help" class="absolute top-6 right-6 text-zinc-500 hover:text-white text-xl font-bold">✕</button>
+            <h2 class="text-3xl font-extrabold mb-6">How to Play</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div class="bg-white/5 p-4 rounded-2xl flex items-center gap-4 border border-white/5">
+                    <span class="text-3xl">👄</span>
+                    <div><p class="font-bold">Lip Pucker</p><p class="text-zinc-500">Pucker for Speed.</p></div>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl flex items-center gap-4 border border-white/5">
+                    <span class="text-3xl">🤫</span>
+                    <div><p class="font-bold">Finger to Lips</p><p class="text-zinc-500">Shush to see Monkey.</p></div>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl flex items-center gap-4 border border-white/5">
+                    <span class="text-3xl">☝️</span>
+                    <div><p class="font-bold">One Finger Up</p><p class="text-zinc-500">Trigger the Big Idea.</p></div>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl flex items-center gap-4 border border-white/5">
+                    <span class="text-3xl">😌</span>
+                    <div><p class="font-bold">Closed Eyes</p><p class="text-zinc-500">Low cortisol chill.</p></div>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl flex items-center gap-4 border border-white/5 col-span-full">
+                    <span class="text-3xl">😱</span>
+                    <div><p class="font-bold">Hands to Head</p><p class="text-zinc-500">Both hands near head for stress.</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <nav class="flex justify-between items-center px-10 py-8 z-10 shrink-0">
+        <div class="w-10"></div>
+        <div class="text-3xl font-extrabold brand-text">CameraCheck<span>MeMe</span></div>
+        <button id="open-help" class="w-10 h-10 soft-panel rounded-full flex items-center justify-center font-bold text-[#ff4d4d] hover:bg-white/10 transition-colors">?</button>
     </nav>
 
-    <main class="flex-1 relative flex items-center justify-center px-6">
-        
-        <!-- Camera Bubble -->
-        <div class="absolute bottom-10 left-10 w-48 h-48 soft-panel overflow-hidden z-20 shadow-xl group">
-            <video id="input_video" class="hidden"></video>
-            <!-- Removed grayscale filter for natural color -->
-            <canvas id="output_canvas" class="w-full h-full object-cover mirror transition-all duration-500"></canvas>
-            <div class="absolute inset-0 border-2 border-white/5 rounded-[24px] pointer-events-none"></div>
+    <main class="flex-1 relative flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16 px-8 lg:px-16 pb-12">
+        <!-- Camera Container -->
+        <div id="camera-frame" class="relative w-full max-w-sm lg:max-w-md aspect-[4/3] soft-panel camera-pip overflow-hidden z-20 shrink-0">
+            <video id="input_video" class="hidden" playsinline></video>
+            <canvas id="output_canvas" class="w-full h-full object-cover mirror"></canvas>
+            
+            <div class="absolute top-8 left-8 w-6 h-6 border-t-2 border-l-2 border-white/30 rounded-tl-lg"></div>
+            <div class="absolute bottom-8 right-8 w-6 h-6 border-b-2 border-r-2 border-white/30 rounded-br-lg"></div>
         </div>
 
-        <!-- The Stage -->
-        <div id="reaction-container" class="reaction-viewport w-full max-w-4xl flex items-center justify-center">
-            <div id="idle-msg" class="text-center transition-all duration-700">
-                <div class="text-6xl mb-6 opacity-20">👋</div>
-                <p class="text-zinc-600 font-medium tracking-wide">Show me a pose to start</p>
+        <!-- Result Container -->
+        <div id="reaction-container" class="reaction-viewport flex-1 h-full w-full flex items-center justify-center border-2 border-dashed border-white/5 rounded-[40px] bg-white/5 backdrop-blur-sm">
+            <div id="idle-msg" class="text-center opacity-40">
+                <div class="text-6xl mb-6">📸</div>
+                <p class="text-zinc-400 font-medium tracking-wide">Strike a pose</p>
             </div>
-
-            <!-- Memes -->
             <img id="res-speed" src="https://media1.tenor.com/m/g0TdYZ1BMpgAAAAd/ishowspeed-meme.gif">
             <img id="res-shush" src="https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUya2RhcHJ2cmo0amhnZ2N6bDNmcW9ubXhyZDFnaDY4bHZ6OHl3aHJ2aCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/4AwFO4f2VLo2fIFFA2/200w.gif">
             <img id="res-point" src="https://media.tenor.com/FWro5uCxvAUAAAAe/idea-monkey-tiktok-monkey.png">
             <img id="res-low" src="https://media.tenor.com/B-uBLzMr9BwAAAAe/low-cortisol.png">
             <img id="res-high" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrdP6ubQQy2VC_DCRlys32ieP_Age6WcauUsblmqZscg&s=10">
-        </div>
-
-        <!-- Simple Menu -->
-        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 soft-panel p-2 flex gap-1 z-30 shadow-2xl">
-            <div class="px-5 py-3 rounded-xl text-[11px] font-bold text-zinc-400">👄 LIP PUCKER</div>
-            <div class="px-5 py-3 rounded-xl text-[11px] font-bold text-zinc-400">🤫 SHUSH</div>
-            <div class="px-5 py-3 rounded-xl text-[11px] font-bold text-zinc-400">☝️ ONE FINGER</div>
-            <div class="px-5 py-3 rounded-xl text-[11px] font-bold text-zinc-400">😌 CHILL</div>
-            <div class="px-5 py-3 rounded-xl text-[11px] font-bold text-zinc-400">😱 STRESS</div>
         </div>
     </main>
 
@@ -126,46 +244,96 @@
         const videoElement = document.getElementById('input_video');
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
-        const startBtn = document.getElementById('start-btn');
         const setupScreen = document.getElementById('setup-screen');
-        const statusText = document.getElementById('status-text');
-        const statusPill = document.getElementById('loading-status');
-
-        const indicators = { 
-            face: document.getElementById('face-dot'), 
-            hand: document.getElementById('hand-dot') 
-        };
+        const startBtn = document.getElementById('start-btn');
+        const cameraFrame = document.getElementById('camera-frame');
+        const typingEl = document.getElementById('typing-text');
         
+        // JSON-style Subtext Data
+        const subtextData = {
+            "phrases": [
+                "Final Year CS Project Ahhh...",
+                "This Is Peak Performance.",
+                "Ready to meme with Twins?",
+                "Unlock your true Aura.",
+                "System Status: Optimized.",
+                "Built for the Culture."
+            ]
+        };
+
+        let pIndex = 0;
+        let charIndex = 0;
+        let isDeleting = false;
+
+        function type() {
+            const phrases = subtextData.phrases;
+            const current = phrases[pIndex];
+            
+            if (isDeleting) {
+                typingEl.textContent = current.substring(0, charIndex - 1);
+                charIndex--;
+            } else {
+                typingEl.textContent = current.substring(0, charIndex + 1);
+                charIndex++;
+            }
+
+            let typeSpeed = isDeleting ? 40 : 80;
+
+            if (!isDeleting && charIndex === current.length) {
+                isDeleting = true;
+                typeSpeed = 2500; // Hold phrase
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                pIndex = (pIndex + 1) % phrases.length;
+                typeSpeed = 500;
+            }
+
+            setTimeout(type, typeSpeed);
+        }
+
+        const helpModal = document.getElementById('help-modal');
+        const openHelp = document.getElementById('open-help');
+        const closeHelp = document.getElementById('close-help');
+        const creditsModal = document.getElementById('credits-modal');
+        const openCredits = document.getElementById('open-credits');
+        const closeCredits = document.getElementById('close-credits');
+
+        openHelp.onclick = () => helpModal.classList.add('active');
+        closeHelp.onclick = () => helpModal.classList.remove('active');
+        openCredits.onclick = () => creditsModal.classList.add('active');
+        closeCredits.onclick = () => creditsModal.classList.remove('active');
+
         const results = {
-            speed: document.getElementById('res-speed'),
-            shush: document.getElementById('res-shush'),
-            point: document.getElementById('res-point'),
-            low: document.getElementById('res-low'),
-            high: document.getElementById('res-high'),
-            idle: document.getElementById('idle-msg')
+            speed: { el: document.getElementById('res-speed'), glow: 'rgba(239, 68, 68, 0.4)' },
+            shush: { el: document.getElementById('res-shush'), glow: 'rgba(124, 58, 237, 0.4)' },
+            point: { el: document.getElementById('res-point'), glow: 'rgba(234, 179, 8, 0.4)' },
+            low: { el: document.getElementById('res-low'), glow: 'rgba(34, 197, 94, 0.4)' },
+            high: { el: document.getElementById('res-high'), glow: 'rgba(239, 68, 68, 0.6)' },
+            idle: { el: document.getElementById('idle-msg'), glow: 'rgba(255, 255, 255, 0.1)' }
         };
 
         function setReaction(key) {
+            const config = results[key] || results.idle;
             Object.keys(results).forEach(k => {
-                if(k === 'idle') {
-                    results[k].style.display = (key === 'idle' ? 'block' : 'none');
-                } else {
-                    results[k].classList.toggle('active', k === key);
-                }
+                if(k === 'idle') results[k].el.style.display = (key === 'idle' ? 'block' : 'none');
+                else results[k].el.classList.toggle('active', k === key);
             });
+            if (key !== 'idle') {
+                document.documentElement.style.setProperty('--glow-color', config.glow);
+                cameraFrame.classList.add('active-glow');
+            } else {
+                cameraFrame.classList.remove('active-glow');
+            }
         }
 
         async function initApp() {
+            type();
             try {
-                if (typeof window.FaceMesh === 'undefined' || typeof window.Hands === 'undefined') {
-                    setTimeout(initApp, 500);
-                    return;
-                }
+                if (typeof window.FaceMesh === 'undefined') { setTimeout(initApp, 500); return; }
 
-                const faceMesh = new window.FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+                const faceMesh = new window.FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
                 faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5 });
-
-                const hands = new window.Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                const hands = new window.Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
                 hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5 });
 
                 let faceData = null;
@@ -173,96 +341,64 @@
 
                 hands.onResults(handRes => {
                     if (!faceData || !faceData.image) return;
-                    
                     if (canvasElement.width !== videoElement.videoWidth) {
                         canvasElement.width = videoElement.videoWidth || 640;
                         canvasElement.height = videoElement.videoHeight || 480;
                     }
-                    
                     canvasCtx.save();
                     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
                     canvasCtx.drawImage(faceData.image, 0, 0, canvasElement.width, canvasElement.height);
 
                     let mood = 'idle';
-                    let faceCenter = {x: 0, y: 0};
+                    let faceCenter = {x: 0, y: 0.5};
 
                     if (faceData.multiFaceLandmarks?.length > 0) {
-                        indicators.face.classList.add('status-on');
                         const f = faceData.multiFaceLandmarks[0];
                         const topL = f[13], botL = f[14], leftM = f[61], rightM = f[291];
-                        const lBrow = f[52], lEye = f[159];
-
                         faceCenter = { x: (leftM.x + rightM.x)/2, y: (topL.y + botL.y)/2 };
-                        const mouthOpen = Math.abs(topL.y - botL.y);
                         const mouthWidth = Math.abs(leftM.x - rightM.x);
-                        const browDist = Math.abs(lBrow.y - lEye.y);
-
-                        if (mouthWidth < 0.045) {
-                            mood = 'speed';
-                        } else if (browDist < 0.025 && mouthOpen < 0.01) {
-                            mood = 'low';
-                        }
-                    } else { 
-                        indicators.face.classList.remove('status-on');
+                        
+                        // Lip Pucker Sensitivity Optimized
+                        if (mouthWidth < 0.054) mood = 'speed';
                     }
 
                     if (handRes.multiHandLandmarks?.length > 0) {
-                        indicators.hand.classList.add('status-on');
-                        
-                        const hCount = handRes.multiHandLandmarks.length;
-                        const h1 = handRes.multiHandLandmarks[0];
-                        const h1Tip = h1[8], h1Base = h1[5], h1Middle = h1[12];
+                        const h1 = handRes.multiHandLandmarks[0], h1Tip = h1[8], h1Base = h1[5], h1Middle = h1[12];
                         const distToFace1 = Math.hypot(h1Tip.x - faceCenter.x, h1Tip.y - faceCenter.y);
                         
-                        if (hCount >= 2) {
-                            const h2 = handRes.multiHandLandmarks[1];
-                            const h2Tip = h2[8];
+                        if (handRes.multiHandLandmarks.length >= 2) {
+                            const h2 = handRes.multiHandLandmarks[1], h2Tip = h2[8];
                             const distToFace2 = Math.hypot(h2Tip.x - faceCenter.x, h2Tip.y - faceCenter.y);
-                            
-                            // More relaxed "hands near head" detection
-                            if (distToFace1 < 0.25 && distToFace2 < 0.25) {
-                                mood = 'high';
-                            }
+                            if (distToFace1 < 0.25 && distToFace2 < 0.25) mood = 'high';
                         }
-
                         if (mood === 'idle') {
                             if (distToFace1 < 0.08) mood = 'shush';
                             else if (h1Tip.y < h1Base.y - 0.1 && h1Middle.y > h1Base.y) mood = 'point';
                         }
-                    } else { 
-                        indicators.hand.classList.remove('status-on');
                     }
 
                     setReaction(mood);
                     canvasCtx.restore();
                 });
 
-                statusText.textContent = "Everything is ready for you.";
                 startBtn.classList.remove('hidden');
-                
                 startBtn.onclick = async () => {
-                    startBtn.textContent = "Almost there...";
+                    startBtn.textContent = "Booting...";
                     try {
                         const camera = new window.Camera(videoElement, {
-                            onFrame: async () => {
-                                await faceMesh.send({image: videoElement});
-                                await hands.send({image: videoElement});
-                            },
+                            onFrame: async () => { await faceMesh.send({image: videoElement}); await hands.send({image: videoElement}); },
                             width: 640, height: 480
                         });
                         await camera.start();
                         setupScreen.classList.add('opacity-0', 'pointer-events-none');
-                        setTimeout(() => setupScreen.style.display = 'none', 500);
-                        statusPill.textContent = 'Camera On';
                     } catch (err) {
-                        alert("I need your camera to see the memes!");
+                        startBtn.textContent = "Error";
                     }
                 };
-            } catch (e) {
-                statusText.textContent = "Something went wrong on our end.";
-            }
+            } catch (e) { console.error(e); }
         }
         initApp();
     </script>
 </body>
 </html>
+
